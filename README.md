@@ -14,13 +14,25 @@ and annotation.
 F. solani genomes were downloaded to the working directory
 
 
+Two of the downloaded genomes contained metadata in the fasta header. This information
+was remove using the following commands:
+
+```bash
+for Assembly in $(ls assembly/external_groups/F.solani/*/assembly/* | grep -e 'fna' | grep -v 'masked'); do
+  Organism=$(echo $Assembly | rev | cut -f4 -d '/' | rev)  
+  Strain=$(echo $Assembly | rev | cut -f3 -d '/' | rev)
+  echo "$Organism - $Strain"
+  OutFile=$(echo $Assembly | sed 's/.fna/.fasta/g' | sed 's._//g')
+  cat $Assembly | sed "s/ .*//" > $OutFile
+done
+```
 
 # Repeat Masking
 
 Repeat masking was performed on the non-hybrid assembly.
 
 ```bash
-  for Assembly in $(ls assembly/external_groups/F.solani/*/assembly/* | grep -e 'fasta' -e 'fna' | grep -v 'masked'); do
+  for Assembly in $(ls assembly/external_groups/F.solani/*/assembly/* | grep -e 'fasta' | grep -v 'masked' | grep -e 'JS-169' -e 'IMV_00293'); do
     Organism=$(echo $Assembly | rev | cut -f4 -d '/' | rev)  
     Strain=$(echo $Assembly | rev | cut -f3 -d '/' | rev)
     echo "$Organism - $Strain"
@@ -84,6 +96,38 @@ First, RNAseq data was aligned to Fusarium genomes.
 * qc of RNA seq data is detailed in the README file of this repository:
 
 
+RNAseq data was downloaded from ncbi:
+https://www.ncbi.nlm.nih.gov/sra/SRX1810229[accn]
+https://www.ncbi.nlm.nih.gov/sra/SRX1810230[accn]
+https://www.ncbi.nlm.nih.gov/sra/SRX1810231[accn]
+
+
+```bash
+# cd /home/groups/harrisonlab/project_files/N.haematococca
+mkdir -p /data/scratch/armita/N.haematococca
+cd /data/scratch/armita/N.haematococca
+# FSOAMB
+OutDir=raw_rna/F.solani/FMR4391/amphotericine_48h
+mkdir -p $OutDir
+fastq-dump -A SRR3609441 --gzip --outdir $OutDir
+fastq-dump -A SRR3609442 --gzip --outdir $OutDir
+fastq-dump -A SRR3609443 --gzip --outdir $OutDir
+# FSOPSC
+OutDir=raw_rna/F.solani/FMR4391/posaconazole_48h
+mkdir -p $OutDir
+fastq-dump -A SRR3609444 --gzip --outdir $OutDir
+fastq-dump -A SRR3609445 --gzip --outdir $OutDir
+fastq-dump -A SRR3609446 --gzip --outdir $OutDir
+#FSONTC
+OutDir=raw_rna/F.solani/FMR4391/dimethyl-sulfoxide_48h
+mkdir -p $OutDir
+fastq-dump -A SRR3609447 --gzip --outdir $OutDir
+fastq-dump -A SRR3609448 --gzip --outdir $OutDir
+fastq-dump -A SRR3609449 --gzip --outdir $OutDir
+```
+
+
+
 #### Aligning
 
 Insert sizes of the RNA seq library were unknown until a draft alignment could
@@ -92,24 +136,30 @@ single genome. The fragment length and stdev were printed to stdout while
 cufflinks was running.
 
 ```bash
-  for Assembly in $(ls repeat_masked/*/*/filtered_contigs/*_contigs_unmasked.fa); do
+for Reads in $(ls ../../../../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/amphotericine_48h/*.fastq.gz); do
+  ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/rna_qc
+  IlluminaAdapters=/home/armita/git_repos/emr_repos/tools/seq_tools/ncbi_adapters.fa
+  echo $Reads
+  qsub $ProgDir/rna_qc_fastq-mcf_unpaired.sh $Reads $IlluminaAdapters DNA
+done
+```
+
+
+```bash
+for Assembly in $(ls repeat_masked/*/*/*/*_contigs_softmasked_repeatmasker_TPSI_appended.fa); do
     Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
     Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
     echo "$Organism - $Strain"
-    for RNADir in $(ls -d ../fusarium/qc_rna/paired/F.oxysporum_fsp_cepae/*); do
+    for RNADir in $(ls -d ../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/amphotericine_48h); do
       FileNum=$(ls $RNADir/F/*_trim.fq.gz | wc -l)
-      for num in $(seq 1 $FileNum); do
+      for File in $(ls $RNADir/*.fq.gz); do
         while [ $Jobs -gt 1 ]; do
           sleep 1m
           printf "."
           Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
         done
         printf "\n"
-        FileF=$(ls $RNADir/F/*_trim.fq.gz | head -n $num | tail -n1)
-        FileR=$(ls $RNADir/R/*_trim.fq.gz | head -n $num | tail -n1)
-        echo $FileF
-        echo $FileR
-        Prefix=$(echo $FileF | rev | cut -f1 -d '/' | rev | sed "s/_R.*_trim.fq.gz//g")
+        Prefix=$(echo $File | rev | cut -f1 -d '/' | rev | sed "s/_trim.fq.gz//g")
         Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
         Timepoint=$(echo $RNADir | rev | cut -f1 -d '/' | rev)
         echo "$Timepoint"
@@ -126,22 +176,25 @@ Accepted hits .bam file were concatenated and indexed for use for gene model tra
 
 
 ```bash
+qlogin -pe smp 8
+cd /home/groups/harrisonlab/project_files/N.haematococca
 for OutDir in $(ls -d alignment/star/*/*); do
   Strain=$(echo $OutDir | rev | cut -d '/' -f1 | rev)
   Organism=$(echo $OutDir | rev | cut -d '/' -f2 | rev)
   echo "$Organism - $Strain"
   # For all alignments
-  BamFiles=$(ls $OutDir/treatment/*/*.sortedByCoord.out.bam | tr -d '\n' | sed 's/.bam/.bam /g')
+  BamFiles=$(ls $OutDir/*/*/*.sortedByCoord.out.bam | tr -d '\n' | sed 's/.bam/.bam /g')
   mkdir -p $OutDir/concatenated
-  samtools merge -f $OutDir/concatenated/concatenated.bam $BamFiles
+  samtools merge -@ 8 -f $OutDir/concatenated/concatenated.bam $BamFiles
 done
+logout
 ```
 
 
 #### Braker prediction
 
 ```bash
-for Assembly in $(ls repeat_masked/*/*/ncbi_edits_repmask/*_contigs_unmasked.fa | grep '1177'); do
+for Assembly in $(ls repeat_masked/*/*/*/*_contigs_softmasked_repeatmasker_TPSI_appended.fa); do
 Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
 Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
 echo "$Organism - $Strain"
@@ -156,23 +209,6 @@ done
 ```
 
 ** Number of genes predicted:  **
-<!--
-Prediction of V.inequalis gene models for tom
-```bash
-for Assembly in $(ls ../venturia/repeat_masked/*/*/filtered_contigs_repmask/*_contigs_unmasked.fa | grep '172_pacbio'); do
-Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
-Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
-echo "$Organism - $Strain"
-mkdir -p alignment/$Organism/$Strain/concatenated
-OutDir=gene_pred/braker/$Organism/"$Strain"_braker
-# AcceptedHits=$(ls alignment/star/$Organism/$Strain/concatenated/concatenated.bam)
-AcceptedHits=$(ls ../venturia/alignment/repeat_masked/v.inaequalis/172_pacbio/concatenated/concatenated.bam)
-GeneModelName="$Organism"_"$Strain"_braker
-rm -r /home/armita/prog/augustus-3.1/config/species/"$Organism"_"$Strain"_braker
-ProgDir=/home/armita/git_repos/emr_repos/tools/gene_prediction/braker1
-qsub $ProgDir/sub_braker_fungi.sh $Assembly $OutDir $AcceptedHits $GeneModelName
-done
-``` -->
 
 
 ## Supplimenting Braker gene models with CodingQuary genes
@@ -186,7 +222,7 @@ Note - cufflinks doesn't always predict direction of a transcript and
 therefore features can not be restricted by strand when they are intersected.
 
 ```bash
-for Assembly in $(ls repeat_masked/*/*/ncbi_edits_repmask/*_contigs_unmasked.fa | grep '1177'); do
+for Assembly in $(ls repeat_masked/*/*/*/*_contigs_unmasked.fa); do
 Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
 Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
 echo "$Organism - $Strain"
@@ -202,7 +238,7 @@ done
 Secondly, genes were predicted using CodingQuary:
 
 ```bash
-  for Assembly in $(ls repeat_masked/*/*/ncbi_edits_repmask/*_contigs_unmasked.fa); do
+  for Assembly in $(ls repeat_masked/*/*/*/*_contigs_unmasked.fa); do
     Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
     Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
     echo "$Organism - $Strain"

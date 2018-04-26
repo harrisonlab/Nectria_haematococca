@@ -109,21 +109,21 @@ cd /data/scratch/armita/N.haematococca
 # FSOAMB
 OutDir=raw_rna/F.solani/FMR4391/amphotericine_48h
 mkdir -p $OutDir
-fastq-dump -A SRR3609441 --gzip --outdir $OutDir
-fastq-dump -A SRR3609442 --gzip --outdir $OutDir
-fastq-dump -A SRR3609443 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609441 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609442 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609443 --gzip --outdir $OutDir
 # FSOPSC
 OutDir=raw_rna/F.solani/FMR4391/posaconazole_48h
 mkdir -p $OutDir
-fastq-dump -A SRR3609444 --gzip --outdir $OutDir
-fastq-dump -A SRR3609445 --gzip --outdir $OutDir
-fastq-dump -A SRR3609446 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609444 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609445 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609446 --gzip --outdir $OutDir
 #FSONTC
 OutDir=raw_rna/F.solani/FMR4391/dimethyl-sulfoxide_48h
 mkdir -p $OutDir
-fastq-dump -A SRR3609447 --gzip --outdir $OutDir
-fastq-dump -A SRR3609448 --gzip --outdir $OutDir
-fastq-dump -A SRR3609449 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609447 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609448 --gzip --outdir $OutDir
+fastq-dump --split-files -A SRR3609449 --gzip --outdir $OutDir
 ```
 
 
@@ -135,35 +135,84 @@ be made. To do this tophat and cufflinks were run, aligning the reads against a
 single genome. The fragment length and stdev were printed to stdout while
 cufflinks was running.
 
+<!-- ```bash
+  for Reads in $(ls ../../../../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/*/*.fastq.gz); do
+    Timepoint=$(echo $Reads| rev | cut -d '/' -f2 | rev)
+    Strain=$(echo $Reads| rev | cut -d '/' -f3 | rev)
+    Organism=$(echo $Reads | rev | cut -d '/' -f4 | rev)
+    echo "$Organism - $Strain - $Timepoint"
+    ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/rna_qc
+    IlluminaAdapters=/home/armita/git_repos/emr_repos/tools/seq_tools/ncbi_adapters.fa
+    echo $Reads
+    OutDir=qc_rna/paired/$Strain/$Timepoint/interlevered
+    qsub $ProgDir/rna_qc_fastq-mcf_unpaired.sh $Reads $IlluminaAdapters DNA $OutDir
+  done
+``` -->
+
 ```bash
-for Reads in $(ls ../../../../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/amphotericine_48h/*.fastq.gz); do
-  ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/rna_qc
-  IlluminaAdapters=/home/armita/git_repos/emr_repos/tools/seq_tools/ncbi_adapters.fa
-  echo $Reads
-  qsub $ProgDir/rna_qc_fastq-mcf_unpaired.sh $Reads $IlluminaAdapters DNA
+for ReadsF in $(ls ../../../../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/*/*_1.fastq.gz); do    
+Strain=$(echo $ReadsF| rev | cut -d '/' -f3 | rev)
+Organism=$(echo $ReadsF | rev | cut -d '/' -f4 | rev)
+TimePoint=$(echo $ReadsF | rev | cut -d '/' -f2 | rev)
+echo "$Organism - $Strain - $TimePoint"
+ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/rna_qc
+IlluminaAdapters=/home/armita/git_repos/emr_repos/tools/seq_tools/ncbi_adapters.fa
+ReadsR=$(echo "$ReadsF" | sed 's/_1.fastq.gz/_2.fastq.gz/g')
+OutDir=../../../../../data/scratch/armita/N.haematococca/qc_rna/paired/$Organism/$Strain/$TimePoint
+echo $ReadsF
+echo $ReadsR
+qsub $ProgDir/rna_qc_fastq-mcf.sh $ReadsF $ReadsR $IlluminaAdapters RNA $OutDir
 done
+```
+
+```bash
+for Assembly in $(ls repeat_masked/*/*/*/*_contigs_unmasked.fa); do
+    Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
+    Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
+    echo "$Organism - $Strain"
+    for File in $(ls -d ../N.haematococca/qc_rna/paired/*/*/interlevered/unpaired/*_trim.fq.gz); do
+        Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
+        while [ $Jobs -gt 1 ]; do
+        sleep 1m
+        printf "."
+        Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
+        done
+        printf "\n"
+        Timepoint=$(echo $File | rev | cut -f4 -d '/' | rev)
+        echo "$Timepoint"
+        Prefix=$(echo $File | rev | cut -f1 -d '/' | rev | sed 's/_trim.fq.gz//g')
+        OutDir=../../../../../data/scratch/armita/N.haematococca/alignment/star/$Organism/$Strain/$Timepoint/$Prefix
+        ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/RNAseq
+        qsub $ProgDir/sub_star_unpaired.sh $Assembly $File $OutDir
+      done
+    done
+  done
 ```
 
 
 ```bash
-for Assembly in $(ls repeat_masked/*/*/*/*_contigs_softmasked_repeatmasker_TPSI_appended.fa); do
+for Assembly in $(ls repeat_masked/*/*/*/*_contigs_softmasked_repeatmasker_TPSI_appended.fa | grep '125' | grep -v 'old'); do
     Strain=$(echo $Assembly| rev | cut -d '/' -f3 | rev)
     Organism=$(echo $Assembly | rev | cut -d '/' -f4 | rev)
     echo "$Organism - $Strain"
-    for RNADir in $(ls -d ../../data/scratch/armita/N.haematococca/raw_rna/F.solani/FMR4391/amphotericine_48h); do
+    for RNADir in $(ls -d ../fusarium/qc_rna/paired/F.oxysporum_fsp_cepae/* | grep -e 'prelim' -e 'PDA' | grep 'PDA'); do
       FileNum=$(ls $RNADir/F/*_trim.fq.gz | wc -l)
-      for File in $(ls $RNADir/*.fq.gz); do
+      for num in $(seq 1 $FileNum); do
         while [ $Jobs -gt 1 ]; do
           sleep 1m
           printf "."
           Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
         done
         printf "\n"
-        Prefix=$(echo $File | rev | cut -f1 -d '/' | rev | sed "s/_trim.fq.gz//g")
+        FileF=$(ls $RNADir/F/*_trim.fq.gz | head -n $num | tail -n1)
+        FileR=$(ls $RNADir/R/*_trim.fq.gz | head -n $num | tail -n1)
+        echo $FileF
+        echo $FileR
+        Prefix=$(echo $FileF | rev | cut -f1 -d '/' | rev | sed "s/_R.*_trim.fq.gz//g")
         Jobs=$(qstat | grep 'sub_sta' | grep 'qw'| wc -l)
         Timepoint=$(echo $RNADir | rev | cut -f1 -d '/' | rev)
         echo "$Timepoint"
-        OutDir=alignment/star/$Organism/$Strain/$Timepoint/$Prefix
+        OutDir=../../../../../data/scratch/armita/N.haematococca/alignment/star/$Organism/$Strain/$Timepoint/$Prefix
         ProgDir=/home/armita/git_repos/emr_repos/tools/seq_tools/RNAseq
         qsub $ProgDir/sub_star.sh $Assembly $FileF $FileR $OutDir
       done
@@ -178,12 +227,12 @@ Accepted hits .bam file were concatenated and indexed for use for gene model tra
 ```bash
 qlogin -pe smp 8
 cd /home/groups/harrisonlab/project_files/N.haematococca
-for OutDir in $(ls -d alignment/star/*/*); do
+for OutDir in $(ls -d ../../../../../data/scratch/armita/N.haematococca/alignment/star/*/*); do
   Strain=$(echo $OutDir | rev | cut -d '/' -f1 | rev)
   Organism=$(echo $OutDir | rev | cut -d '/' -f2 | rev)
   echo "$Organism - $Strain"
   # For all alignments
-  BamFiles=$(ls $OutDir/*/*/*.sortedByCoord.out.bam | tr -d '\n' | sed 's/.bam/.bam /g')
+  BamFiles=$(ls $OutDir/*/*/*/*.sortedByCoord.out.bam | tr -d '\n' | sed 's/.bam/.bam /g')
   mkdir -p $OutDir/concatenated
   samtools merge -@ 8 -f $OutDir/concatenated/concatenated.bam $BamFiles
 done

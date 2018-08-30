@@ -37,7 +37,6 @@ at ../analysis/AHDB_blast
 
 ### Prepare queries JS-169 and Nacha2
 
-Create a list of genes from FoM and FoN LS regions
 ```bash
 for File in $(ls analysis/effectorP/F.solani/*/*_EffectorP_secreted_headers.txt | grep -v 'IMV_00293'); do
   Strain=$(echo $File | rev | cut -f2 -d '/' | rev)

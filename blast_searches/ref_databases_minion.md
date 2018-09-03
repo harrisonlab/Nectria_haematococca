@@ -84,10 +84,10 @@ Blast against themselves
 ```bash
 for RefGenome in $(ls repeat_masked/*/*/*/*_contigs_softmasked_repeatmasker_TPSI_appended.fa); do
 Prefix=$(basename $RefGenome _contigs_softmasked_repeatmasker_TPSI_appended.fa)
-OutDir=analysis/AHDB_blast2/vs_ref_genomes/$Prefix
+OutDir=analysis/AHDB_blast2/vs_own_genomes/$Prefix
 # Prefix=$(echo $RefGenome | cut -f5,6 -d '/' --output-delimiter '_')
 echo $Prefix
-OutDir=analysis/AHDB_blast2/vs_ref_genomes/$Prefix
+OutDir=analysis/AHDB_blast2/vs_own_genomes/$Prefix
 mkdir -p $OutDir
 CurDir=$PWD
 cd $OutDir
@@ -149,13 +149,15 @@ done
 ## Summarise blast hists
 
 ```bash
-CsvFiles=$(ls analysis/AHDB_blast2/vs_*_genomes/*/*F.solani_effP.fa_hits.csv | grep -e 'vs_ref_genomes' -e 'vs_seq_genomes' | grep -v 'F.oxysporum_/' | grep -v -e 'GCA_000599445.1' -e '77-13-4')
-Headers=$(echo $CsvFiles | sed 's&analysis/AHDB_blast2/vs_ref_genomes/&&g' | sed 's&analysis/AHDB_blast2/vs_seq_genomes/&&g' | sed -r "s&_F.solani_effP.fa_hits.csv&&g" | sed -r "s&/\S*&&g"  | sed 's&/van_dam&&g')
+CsvFiles=$(ls analysis/AHDB_blast2/vs_*_genomes/*/*F.solani_effP.fa_hits.csv | grep -e 'vs_ref_genomes' -e 'vs_seq_genomes' -e 'vs_own_genomes' | grep -v 'F.oxysporum_/' | grep -v -e 'GCA_000599445.1' -e '77-13-4')
+Headers=$(echo $CsvFiles | sed 's&analysis/AHDB_blast2/vs_ref_genomes/&&g' | sed 's&analysis/AHDB_blast2/vs_seq_genomes/&&g' | sed 's&analysis/AHDB_blast2/vs_own_genomes/&&g' | sed -r "s&_F.solani_effP.fa_hits.csv&&g" | sed -r "s&/\S*&&g"  | sed 's&/van_dam&&g')
 OutDir=analysis/AHDB_blast2/vs_ref_genomes/extracted
 mkdir -p $OutDir
+CsvFiles=$(ls analysis/AHDB_blast2/vs_*_genomes/*/*F.solani_effP.fa_hits.csv | grep -e 'vs_ref_genomes' -e 'vs_seq_genomes' -e 'vs_own_genomes' | grep -v 'F.oxysporum_/' | grep -v -e 'GCA_000599445.1' -e '77-13-4')
 Genomes=$(ls analysis/AHDB_blast2/vs_*_genomes/*/*_genome.fa | grep -e 'vs_ref_genomes' -e 'vs_seq_genomes' | grep -v 'F.oxysporum_/' | grep -v 'GCA_000599445.1' | grep -e 'vs_ref_genomes' -e 'vs_seq_genomes' | grep -v 'F.oxysporum_/' | grep -v -e 'GCA_000599445.1' -e '77-13-4')
 ProgDir=/home/armita/git_repos/emr_repos/scripts/fusarium/AHDB_project/blast_searches
 $ProgDir/blast_parse_AHDB.py --blast_csv $CsvFiles --headers $Headers --genomes $Genomes --identity 0.50 --evalue 1e-30 --out_prefix $OutDir/F.solani_effP
+ls $OutDir/F.solani_effP.csv
 ```
 
 

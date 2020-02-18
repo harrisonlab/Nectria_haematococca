@@ -354,23 +354,6 @@ In preperation for submission to ncbi, gene models were renamed and duplicate ge
  * no duplicate genes were identified
 
 
- ```bash
- for Gff in $(ls gene_pred/final_genes/*/*/final/final_genes_appended.gff3 | grep -w -e 'FON_63' -e 'Stocks4' | grep -w -e 'Stocks4'); do
- 	Strain=$(echo $Gff | rev | cut -d '/' -f3 | rev)
- 	Organism=$(echo $Gff | rev | cut -d '/' -f4 | rev)
- 	echo "$Strain - $Organism"
- 	cat $Gff | grep -w 'gene' | wc -l
- done
- ```
-
- ```
- Stocks4 - F.oxysporum_fsp_mathioli
- 20361
- FON_63 - F.oxysporum_fsp_narcissi
- 20545
- ```
-
-
  In preperation for submission to ncbi, gene models were renamed and duplicate gene features were identified and removed.
   * no duplicate genes were identified
 
@@ -405,6 +388,41 @@ In preperation for submission to ncbi, gene models were renamed and duplicate ge
  ```
 
 
+  ```bash
+  for Gff in $(ls gene_pred/final_genes/*/*/final/final_genes_appended_renamed.gff3); do
+  	Strain=$(echo $Gff | rev | cut -d '/' -f3 | rev)
+  	Organism=$(echo $Gff | rev | cut -d '/' -f4 | rev)
+  	echo "$Strain - $Organism"
+  	cat $Gff | grep -w 'gene' | wc -l
+  	cat $Gff | grep -w 'mRNA' | wc -l
+  	cat $Gff | grep -w 'mRNA' | grep 'AUGUSTUS' | wc -l
+  	cat $Gff | grep -w 'mRNA' | grep -v 'AUGUSTUS' | wc -l
+  done
+  ```
+
+  ```
+  IMV_00293 - F.solani
+  17681
+  17747
+  15764
+  1983
+  JS-169 - F.solani
+  14377
+  14398
+  13596
+  802
+  Nacha2 - F.solani
+  16688
+  16729
+  15473
+  1256
+  PG13 - F.solani
+  18342
+  18379
+  16352
+  2027
+  ```
+
 ## Assessing the Gene space in predicted transcriptomes:
 
  ```bash
@@ -420,12 +438,12 @@ In preperation for submission to ncbi, gene models were renamed and duplicate ge
  done
  ```
 
- ```bash
- 	for File in $(ls gene_pred/busco/*/*/genes/*/short_summary_*.txt); do  
- 		echo $File;
- 		cat $File | grep -e '(C)' -e 'Total';
- 	done
- ```
+```bash
+for File in $(ls gene_pred/busco/*/*/genes/*/short_summary_*.txt); do  
+echo $File;
+cat $File | grep -e '(C)' -e 'Total';
+done
+```
 
 
 #Functional annotation
@@ -569,7 +587,7 @@ Those proteins with transmembrane domains were removed from lists of Signal
 peptide containing proteins
 
 ```bash
-for File in $(ls gene_pred/trans_mem/*/*/*_TM_genes_neg.txt); do
+for File in $(ls gene_pred/trans_mem/*/*/*_TM_genes_neg.txt | grep 'PG13'); do
 Strain=$(echo $File | rev | cut -f2 -d '/' | rev)
 Organism=$(echo $File | rev | cut -f3 -d '/' | rev)
 # echo "$Organism - $Strain"
@@ -594,6 +612,7 @@ done
 ```
 
 ```
+F.solani	PG13	1733	1404	1400
 F.solani	IMV_00293	1682	1378	1376
 F.solani	JS-169	1317	1055	1055
 F.solani	Nacha2	1630	1333	1332
@@ -623,7 +642,7 @@ were identified:
 Note - this doesnt exclude proteins with TM domains or GPI anchors
 
 ```bash
-  for File in $(ls analysis/effectorP/*/*/*_EffectorP.txt); do
+  for File in $(ls analysis/effectorP/*/*/*_EffectorP.txt | grep 'PG13'); do
     Strain=$(echo $File | rev | cut -f2 -d '/' | rev)
     Organism=$(echo $File | rev | cut -f3 -d '/' | rev)
     echo "$Organism - $Strain"
